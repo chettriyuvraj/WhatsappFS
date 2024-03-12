@@ -3,12 +3,14 @@
 
  * Compile with:
  *
- *     gcc -Wall whatsappfs.c `pkg-config fuse3 --cflags --libs` -o whatsappfs
+ *     gcc -Wall fs.c `pkg-config fuse3 --cflags --libs` -o whatsappfs
  *
  */
 
 
 #define FUSE_USE_VERSION 31
+#define MSG_QUEUE_KEY 310898
+#define MSG_SEND_TYPE 1
 
 #include <fuse.h>
 #include <stdio.h>
@@ -27,6 +29,8 @@
  * different values on the command line.
  */
 static struct options {
+	const char *filename;
+	const char *contents;
 	int show_help;
 } options;
 
@@ -52,35 +56,53 @@ static const struct fuse_opt option_spec[] = {
 	FUSE_OPT_END
 };
 
+int init_msg_queue();
+
 /* TODO: cfg -> auto_cache = 1; */
 static void *whatsapp_init(struct fuse_conn_info *conn,
 			struct fuse_config *cfg)
 {
     int msqid;
 	struct queue_info queue_info = {-1};
+	struct queue_msgbuf msg = {MSG_SEND_TYPE, {"Test title", "This is the title content"}};
 	
 	msqid = init_msg_queue();
 	if (msqid == -1) {
-		return
+		return;
 	}
 
-	if ((int err = mmsgsnd(msqid, &msg, sizeof(struct queue_msgbuf), 0)) == -1) {
+	if (msgsnd(msqid, &msg, sizeof(struct queue_msgbuf), 0) == -1) {
 		fuse_log(FUSE_LOG_INFO, "\n whatsapp_init: failed to send message queue");
-		return -1
+		return;
 	}
 
-	return NULL;
+	fuse_log(FUSE_LOG_INFO, "\n whatsapp_init: Successfully init message queue and sent message");
 }
 
 static int whatsapp_getattr(const char *path, struct stat *stbuf,
 			 struct fuse_file_info *fi)
 {
 
-    memset(stbuf, 0, sizeof(struct stat));
-    stbuf.mode = 0777;
-    stbuf.nlink = 1;
-    stbuf.st_size = 10;
-    return 0;
+    // memset(stbuf, 0, sizeof(struct stat));
+    // stbuf->st_mode = 0777;
+    // stbuf->st_nlink = 1;
+    // stbuf->st_size = 10;
+    // return 0;
+	(void) fi;
+	int res = 0;
+
+	memset(stbuf, 0, sizeof(struct stat));
+	if (strcmp(path, "/") == 0) {
+		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_nlink = 2;
+	} else if (strcmp(path+1, options.filename) == 0) {
+		stbuf->st_mode = S_IFREG | 0444;
+		stbuf->st_nlink = 1;
+		stbuf->st_size = strlen(options.contents);
+	} else
+		res = -ENOENT;
+
+	return res;
 }
 
 static int whatsapp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
@@ -134,6 +156,9 @@ static int whatsapp_read(const char *path, char *buf, size_t size, off_t offset,
 static const struct fuse_operations whatsapp_oper = {
 	.init           = whatsapp_init,
 	.getattr	= whatsapp_getattr,
+	.readdir	= whatsapp_readdir,
+	.open		= whatsapp_open,
+	.read		= whatsapp_read,
 };
 
 static void show_help(const char *progname)
@@ -141,10 +166,12 @@ static void show_help(const char *progname)
 	printf("usage: %s [options] <mountpoint>\n\n", progname);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	int ret;
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+
+	options.filename = strdup("hello");
+	options.contents = strdup("Hello World!\n");
 
 	/* Parse options */
 	if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1)
@@ -169,15 +196,15 @@ int main(int argc, char *argv[])
 
 /*** HELPERS ***/
 
-int init_message_queue() {
+int init_msg_queue() {
     key_t key;
     int msqid;
-	struct queue_msgbuf msg = {1, {"This is a test message", "Test title"}}
 
-    key = ftok("/home/chettriyuvraj/Desktop/Development/WhatsappFS", "y");
+    // key = ftok("/home/chettriyuvraj/Desktop/Development/WhatsappFS", 'y');
+	key = MSG_QUEUE_KEY;
     msqid = msgget(key, 0666 | IPC_CREAT);
     if (msqid == -1) {
-        fuse_log(FUSE_LOG_INFO, "\n init_message_queue: failed to initialize message queue");
+        fuse_log(FUSE_LOG_INFO, "\n init_msg_queue: failed to initialize message queue");
 		return -1 ;
     }
 
