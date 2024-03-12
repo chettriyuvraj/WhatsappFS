@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "svmq": "^1.0.7"
+  }
+}
