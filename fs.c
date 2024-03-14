@@ -38,11 +38,14 @@ static struct queue_info {
 	int msqid;
 };
 
+/* 
+Ideally, message should contain 
+ */
 struct queue_msgbuf {
     long mtype;  /* must be positive */
     struct info {
-		char title[30];
-        char info[30];
+		char action[30];
+        char path[100];
     } info;
 };
 
