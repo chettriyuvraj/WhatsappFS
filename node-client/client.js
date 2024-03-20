@@ -18,25 +18,42 @@ const MessageFormat = {
         length: 100
     }
 };
+// const ResponseFormat = {
+//     data: {},
+//     path: {
+//         type: MESSAGEFIELDTYPES.STRING,
+//         length: 100
+//     }
+// };
 const Routes = {};
 
 /*** Core functions ***/
 
-
-const connectWhatsapp = () => {
-    const client = new Client();
-
-    client.once('ready', () => {
-        console.log('Client is ready!');
-    });
-
+const connectWhatsapp = (client) => {
+    client.initialize();
     client.on('qr', (qr) => {
         console.log('QR RECEIVED', qr);
         qrcode.generate(qr, {small: true});
     });
+}
 
-    // Start your client
-    client.initialize();
+const setupEventResponses = async(client) => {
+    client.once('ready', async () => {
+        console.log('Client is ready!');
+        contacts = await client.getContacts()
+        users, groups = [], [];
+        // for (const contact of contacts) {
+        //     contactInfo = {
+        //         name: contact.name,
+        //         number: contact.number,
+        //     }
+        //     if (contact.isGroup) {
+        //         groups.push(contactInfo);
+        //     } else {
+        //         users.push(contactInfo)
+        //     }
+        // }
+    });
 }
 
 /**
@@ -92,7 +109,9 @@ const utf8ArrayToString = (function() {
     return utf8 => decoder.decode(utf8);
 })();
 
-connectWhatsapp();
+const client = new Client();
+connectWhatsapp(client);
+setupEventResponses(client);
 
 module.exports = {
     parseMessage,
