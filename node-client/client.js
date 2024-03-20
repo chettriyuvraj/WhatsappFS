@@ -1,4 +1,6 @@
 const MessageQueue = require('svmq');
+const { Client } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
 
 /*** Info regarding the message sent from filesystem - each message represents an action e.g. readdir ***/
 const FILESYSMESSAGETYPE = 1
@@ -6,7 +8,6 @@ const MESSAGEQUEUEKEY = 310898
 const MESSAGEFIELDTYPES = {
     STRING: 'string'
 };
-const MessageTypes = {};
 const MessageFormat = {
     action: {
         type: MESSAGEFIELDTYPES.STRING,
@@ -17,17 +18,44 @@ const MessageFormat = {
         length: 100
     }
 };
+const Routes = {};
 
 /*** Core functions ***/
 
+
+const connectWhatsapp = () => {
+    const client = new Client();
+
+    client.once('ready', () => {
+        console.log('Client is ready!');
+    });
+
+    client.on('qr', (qr) => {
+        console.log('QR RECEIVED', qr);
+        qrcode.generate(qr, {small: true});
+    });
+
+    // Start your client
+    client.initialize();
+}
+
 /**
  * Pop message off the queue and parse them
- **/ 
-const queue = MessageQueue.open(MESSAGEQUEUEKEY);
-queue.pop({ type: FILESYSMESSAGETYPE }, (err, data) => {
-  const message = parseMessage(data);
-  console.log(message);
-});
+ **/
+const connect = () => {
+    const queue = MessageQueue.open(MESSAGEQUEUEKEY);
+    queue.pop({ type: FILESYSMESSAGETYPE }, (err, data) => {
+    const message = parseMessage(data);
+    console.log(message);
+    });
+}
+
+
+Routes["/"] = {
+    readdir: async () => {
+        
+    }
+};
 
 
 /*** Helper functions ***/
@@ -63,6 +91,8 @@ const utf8ArrayToString = (function() {
     const decoder = new TextDecoder("utf-8");
     return utf8 => decoder.decode(utf8);
 })();
+
+connectWhatsapp();
 
 module.exports = {
     parseMessage,
