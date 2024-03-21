@@ -21,6 +21,9 @@
 #include <assert.h>
 #include <sys/msg.h>
 
+#include "vendor/frozen.h"
+#include "vendor/frozen.c"
+
 /*
  * Command line options
  *
