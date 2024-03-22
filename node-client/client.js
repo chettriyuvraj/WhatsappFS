@@ -1,6 +1,21 @@
 const MessageQueue = require('svmq');
 const { Client } = require('whatsapp-web.js');
+
 const qrcode = require('qrcode-terminal');
+
+/*** General Constants ***/
+
+const unix = {
+    /* Unix file types */
+    S_IFMT: 0170000,   /* type of file mask */
+    S_IFIFO: 010000,   /* named pipe (fifo) */
+    S_IFCHR: 020000,   /* character special */
+    S_IFDIR: 040000,   /* directory */
+    S_IFBLK: 060000,   /* block special */
+    S_IFREG: 0100000,  /*  regular */
+    S_IFLNK: 0120000,  /*  symbolic link */
+    S_IFSOCK: 0140000, /*  socket */
+  }
 
 /*** Info regarding the message sent from filesystem - each message represents an action e.g. readdir ***/
 const FILESYSMESSAGETYPE = 1
@@ -26,6 +41,27 @@ const MessageFormat = {
 //     }
 // };
 const Routes = {};
+const cache = {
+    chats: [],
+    contacts: [],
+};
+
+/*** Routes ***/
+Routes['/chats'] = {
+    description: 'List of all chats of the user',
+    usage: 'ls',
+    getattr() {
+        return {
+            st_mode: unix.ST_IFDIR,
+            st_nlink: 3,
+            st_size: 0
+        }
+    },
+    async readdir(client) {
+        const chats = await client.getChats();
+        return ['.', '..', ...chats.map(chat => chat.name)];
+    }
+}
 
 /*** Core functions ***/
 
@@ -37,34 +73,47 @@ const connectWhatsapp = (client) => {
     });
 }
 
-const setupEventResponses = async(client) => {
+const setupEventResponses = async (client) => {
     client.once('ready', async () => {
         console.log('Client is ready!');
-        contacts = await client.getContacts()
-        users, groups = [], [];
-        // for (const contact of contacts) {
-        //     contactInfo = {
-        //         name: contact.name,
-        //         number: contact.number,
-        //     }
-        //     if (contact.isGroup) {
-        //         groups.push(contactInfo);
-        //     } else {
-        //         users.push(contactInfo)
-        //     }
-        // }
+        connect(client);
     });
+}
+
+const cacheChatsAndContactsGlobally = async (client) => {
+    chats, contacts = await client.getChats(), await client.getContacts();
+    cache[chats] = chats;
+    cache[contacts] = contacts;
 }
 
 /**
  * Pop message off the queue and parse them
  **/
-const connect = () => {
-    const queue = MessageQueue.open(MESSAGEQUEUEKEY);
-    queue.pop({ type: FILESYSMESSAGETYPE }, (err, data) => {
-    const message = parseMessage(data);
-    console.log(message);
-    });
+const connect = async (client) => {
+    // const queue = MessageQueue.open(MESSAGEQUEUEKEY);
+    // queue.pop({ type: FILESYSMESSAGETYPE }, (err, data) => {
+    //     s = utf8ArrayToString(data);
+    //     const message = JSON.parse(s);
+    //     console.log(message);
+    // });
+    const queue = [{
+        action: 'readdir',
+        path: '/chats'
+    },
+    {
+        action: 'readdir',
+        path: '/chats'
+    },
+    {
+        action: 'readdir',
+        path: '/chats'
+    }]
+
+    for (let i = 0; i < queue.length; i++) {
+        const {action, path} = queue[i];
+        const res = await Routes[path][action](client);
+        console.log("\n\nResult of ith action is " + JSON.stringify(res));
+    }
 }
 
 
@@ -109,12 +158,17 @@ const utf8ArrayToString = (function() {
     return utf8 => decoder.decode(utf8);
 })();
 
-const client = new Client();
-connectWhatsapp(client);
-setupEventResponses(client);
+if (require.main == module) {
+    const client = new Client();
+    connectWhatsapp(client);
+    setupEventResponses(client);
+}
+
+
 
 module.exports = {
     parseMessage,
     MessageFormat,
-    MESSAGEFIELDTYPES
+    MESSAGEFIELDTYPES,
+    Routes
 }
