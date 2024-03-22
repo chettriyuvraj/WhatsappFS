@@ -18,3 +18,34 @@
 
 - Well, how about a file system for Whatsapp? Each chat as a file, maybe read chats, delete chats, hmm....presenting WhatsappFS!
 
+
+## Structure
+- chats (use client.getchats)
+    - a, b, c ...
+        (read only)
+        - isGroup
+        - isMuted
+        - timestamp (return in ls -l?)
+        - lastMessage
+        (exec)
+        - mark unread
+        - delete -> rm command
+        - mute
+        - pin
+        - sendStateTyping
+        (write)
+        - write to chat using vim cat etc
+    
+    
+
+
+- contacts (gives all contacts)
+    - a, b, c ...
+        (dir)
+        - chat (execute same route as chat)
+        (read only)
+        - isBlocked
+        - isBusiness
+        - isEnterprise
+        (exec only)
+        - block
