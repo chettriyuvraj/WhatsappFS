@@ -7,14 +7,14 @@ const qrcode = require('qrcode-terminal');
 
 const unix = {
     /* Unix file types */
-    S_IFMT: 0170000,   /* type of file mask */
-    S_IFIFO: 010000,   /* named pipe (fifo) */
-    S_IFCHR: 020000,   /* character special */
-    S_IFDIR: 040000,   /* directory */
-    S_IFBLK: 060000,   /* block special */
-    S_IFREG: 0100000,  /*  regular */
-    S_IFLNK: 0120000,  /*  symbolic link */
-    S_IFSOCK: 0140000, /*  socket */
+    S_IFMT: parseInt('0170000',8),   /* type of file mask */
+    S_IFIFO: parseInt('010000', 8),   /* named pipe (fifo) */
+    S_IFCHR: parseInt('020000', 8),   /* character special */
+    S_IFDIR: parseInt('040000', 8),   /* directory */
+    S_IFBLK: parseInt('060000', 8),   /* block special */
+    S_IFREG: parseInt('0100000',8),  /*  regular */
+    S_IFLNK: parseInt('0120000',8),  /*  symbolic link */
+    S_IFSOCK: parseInt('0140000',8), /*  socket */
   }
 
 /*** Info regarding the message sent from filesystem - each message represents an action e.g. readdir ***/

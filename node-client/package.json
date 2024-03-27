@@ -3,5 +3,11 @@
     "qrcode-terminal": "^0.12.0",
     "svmq": "^1.0.7",
     "whatsapp-web.js": "^1.23.0"
+  },
+  "scripts": {
+    "test": "jest --verbose ./tests"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
