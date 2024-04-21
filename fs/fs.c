@@ -24,7 +24,7 @@
 #include "vendor/frozen.h"
 #include "vendor/frozen.c"
 
-#define MAX_MESSAGE_SIZE (size_t)1024*1024
+#define MAX_MESSAGE_SIZE (size_t)1024
 
 /*
  * Command line options
@@ -43,9 +43,6 @@ static struct queue_info {
 	int msqid;
 };
 
-/* 
-Ideally, message should contain 
- */
 struct queue_msgbuf {
     long mtype;  /* must be positive */
 	struct info {
@@ -65,78 +62,52 @@ static const struct fuse_opt option_spec[] = {
 };
 
 int init_msg_queue();
+int exchange_json(const char *action, const char *path);
+
+struct queue_info queue_info = {-1};
 
 /* TODO: cfg -> auto_cache = 1; */
 static void *whatsapp_init(struct fuse_conn_info *conn,
 			struct fuse_config *cfg)
-{
-    int msqid;
-	struct queue_info queue_info = {-1};
-	struct queue_msgbuf msg;
-	char *jsonbuf = malloc(MAX_MESSAGE_SIZE);
-	struct json_out out = JSON_OUT_BUF(jsonbuf, MAX_MESSAGE_SIZE);
-	
-	msqid = init_msg_queue();
+{	
+	/* Initialize message queue */
+	int msqid = init_msg_queue();
 	if (msqid == -1) {
 		return;
 	}
+	queue_info.msqid = msqid;
 
-	json_printf(&out, "{action: %Q, path: %Q}", "Test action", "testpath");
-	printf("\nData: %s\n", jsonbuf);
-	msg.mtype = MSG_SEND_TYPE;
-	msg.msg_info.size = strlen(jsonbuf);
-	strcpy(msg.msg_info.data, jsonbuf);
-	printf("\nData: %s\n", msg.msg_info.data);
-
-	if (msgsnd(msqid, &msg, sizeof(struct queue_msgbuf), 0) == -1) {
-		fuse_log(FUSE_LOG_INFO, "\n whatsapp_init: failed to send to message queue");
-		return;
-	}
-
-	fuse_log(FUSE_LOG_INFO, "\n whatsapp_init: Successfully init message queue and sent message");
+	fuse_log(FUSE_LOG_INFO, "\n whatsapp_init: Successfully init message queue");
 }
 
 static int whatsapp_getattr(const char *path, struct stat *stbuf,
 			 struct fuse_file_info *fi)
 {
-
-    // memset(stbuf, 0, sizeof(struct stat));
-    // stbuf->st_mode = 0777;
-    // stbuf->st_nlink = 1;
-    // stbuf->st_size = 10;
-    // return 0;
-	(void) fi;
-	int res = 0;
-
-	memset(stbuf, 0, sizeof(struct stat));
-	if (strcmp(path, "/") == 0) {
-		stbuf->st_mode = S_IFDIR | 0755;
-		stbuf->st_nlink = 2;
-	} else if (strcmp(path+1, options.filename) == 0) {
-		stbuf->st_mode = S_IFREG | 0444;
-		stbuf->st_nlink = 1;
-		stbuf->st_size = strlen(options.contents);
-	} else
-		res = -ENOENT;
-
-	return res;
+	if (exchange_json("getattr", path) == -1) {
+		fuse_log(FUSE_LOG_INFO, "\n whatsapp_getattr: failed to exchange json");
+	}
+	return 0;
 }
 
 static int whatsapp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			 off_t offset, struct fuse_file_info *fi,
 			 enum fuse_readdir_flags flags)
 {
-	(void) offset;
-	(void) fi;
-	(void) flags;
+	/* Fill up routes for the base path */
+	if (strcmp(path, "/") == 0)
+	{
+		filler(buf, ".", NULL, 0, 0);
+		filler(buf, "..", NULL, 0, 0);
+		filler(buf, "chats", NULL, 0, 0);
+		return 0;
+	}
 
-	if (strcmp(path, "/") != 0)
-		return -ENOENT;
 
-	filler(buf, ".", NULL, 0, 0);
-	filler(buf, "..", NULL, 0, 0);
-	filler(buf, options.filename, NULL, 0, 0);
 
+
+	if (exchange_json("readdir", path) == -1) {
+		fuse_log(FUSE_LOG_INFO, "\n whatsapp_readdir: failed to exchange json");
+	}
 	return 0;
 }
 
@@ -213,11 +184,35 @@ int main(int argc, char *argv[]) {
 
 /*** HELPERS ***/
 
+int exchange_json(const char *action, const char *path) {
+	/* Initialize message struct and get JSON */
+	struct queue_msgbuf msg;
+	char *jsonbuf = malloc(MAX_MESSAGE_SIZE);
+	struct json_out out = JSON_OUT_BUF(jsonbuf, MAX_MESSAGE_SIZE);
+	if (json_printf(&out, "{action: %Q, path: %Q}", action, path) == -1 ) { /* Check if -1 is valid error code for this later */ 
+		fuse_log(FUSE_LOG_INFO, "\n exchange_json: failed to convert action and path to json");
+		return -1;
+	}
+
+	/* Fill message struct */
+	msg.mtype = MSG_SEND_TYPE;
+	msg.msg_info.size = strlen(jsonbuf);
+	strcpy(msg.msg_info.data, jsonbuf);
+	printf("\nData: %s\n", msg.msg_info.data);
+
+	/* Send to message queue */
+	if (msgsnd(queue_info.msqid, &msg, sizeof(struct queue_msgbuf), 0) == -1) {
+		fuse_log(FUSE_LOG_INFO, "\n exchange_json: failed to send to message queue");
+		return -1;
+	}
+	fuse_log(FUSE_LOG_INFO, "\n exchange_json: successfully converted action and path to json");
+	return 0;
+}
+
 int init_msg_queue() {
     key_t key;
     int msqid;
 
-    // key = ftok("/home/chettriyuvraj/Desktop/Development/WhatsappFS", 'y');
 	key = MSG_QUEUE_KEY;
     msqid = msgget(key, 0666 | IPC_CREAT);
     if (msqid == -1) {

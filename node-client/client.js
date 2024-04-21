@@ -97,13 +97,28 @@ const connect = async (client) => {
         /* Grab the data according to the length */
         const message = JSON.parse(data.slice(4, 4 + dataLen));
         console.log(message);
+
+        /* Check if it exists in route */
+        const {path, action} = message;
+        if (path in Routes) {
+            console.log(Routes[path][action]);
+        }
+        connect(client);
     });
+
 }
 
 
 Routes["/"] = {
-    readdir: async () => {
-        
+    getattr() {
+        return {
+            st_mode: unix.S_IFDIR | 0755,
+            st_nlink: 3,
+            st_size: 0,
+        };
+    },
+    readdir () {
+        return ['.', '..', 'chats'];
     }
 };
 
