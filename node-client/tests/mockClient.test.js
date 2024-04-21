@@ -1,15 +1,25 @@
-const { Routes } = require('../client');
 const { MockClient } = require('./testutils/mockClient');
-const { chats, contacts } = require('./testutils/testData');
-// const { describe, test, expect } = require('jest');
+const { chats, contacts, qr } = require('./testutils/testData');
 
 describe('mock client', () => {
-    test('client emits ready event', done => {
-        const client = new MockClient(chats, contacts);
-        client.once('ready', () => {
-            expect(1).toBe(1);
+    test('emits ready event and returns mock data', (done) => {
+        const client = new MockClient(chats, contacts, qr);
+        client.on('ready', async () => {
+            const [chatsGot, contactsGot] = await Promise.all([client.getChats(), await client.getContacts()]);
+            expect(chatsGot).toEqual(chats);
+            expect(contactsGot).toEqual(contacts);
             done();
         });
-        client.makeReady();
+        client.emitReady();
     });
+
+    test('emits qr code', (done) => {
+        const client = new MockClient(chats, contacts, qr);
+        client.on('qr', (clientQR) => {
+            expect(clientQR).toEqual(qr);
+            done();
+        });
+        client.emitQR();
+    });
+
 })

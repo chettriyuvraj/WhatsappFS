@@ -193,7 +193,10 @@ const contacts = [
 	}
 ];
 
+const qr = 'this is a test qr';
+
 module.exports = {
     chats,
-    contacts
+    contacts,
+	qr
 }

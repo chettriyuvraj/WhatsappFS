@@ -3,29 +3,34 @@ const { EventEmitter } = require('events');
 const { Events } = require('whatsapp-web.js');
 
 class MockClient extends EventEmitter{
-	constructor(chats, contacts) {
+	constructor(chats, contacts, qr) {
 		super();
 		this.chats = chats;
-		this.contact = contacts;
+		this.contacts = contacts;
+		this.qr = qr;
 	}
 
-	makeReady() {
+	emitReady() {
 		this.emit(Events.READY);
+	}
+
+	emitQR() {
+		this.emit(Events.QR_RECEIVED, this.qr);
 	}
 
 	getChats() {
 		return new Promise((resolve, _) => {
 			setTimeout(() => { /* TODO: add random rejects */
-				resolve(chats);
-			}, 3000);
+				resolve(this.chats);
+			}, 0);
 		});
 	}
 
 	getContacts() {
 		return new Promise((resolve, _) => {
 			setTimeout(() => { /* TODO: add random rejects */
-				resolve(contacts);
-			}, 3000);
+				resolve(this.contacts);
+			}, 0);
 		});
 	}
 }
