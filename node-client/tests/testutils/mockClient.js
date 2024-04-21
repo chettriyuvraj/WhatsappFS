@@ -18,6 +18,10 @@ class MockClient extends EventEmitter{
 		this.emit(Events.QR_RECEIVED, this.qr);
 	}
 
+	initialize() {
+		return
+	}
+
 	getChats() {
 		return new Promise((resolve, _) => {
 			setTimeout(() => { /* TODO: add random rejects */

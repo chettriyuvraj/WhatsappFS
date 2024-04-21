@@ -63,7 +63,7 @@ Routes['/chats'] = {
     }
 }
 
-/*** Core functions ***/
+/*** Connect functions ***/
 
 const connectWhatsapp = (client) => {
     client.initialize();
@@ -71,10 +71,7 @@ const connectWhatsapp = (client) => {
         console.log('QR RECEIVED', qr);
         qrcode.generate(qr, {small: true});
     });
-}
-
-const setupEventResponses = async (client) => {
-    client.once('ready', async () => {
+    client.on('ready', async () => {
         console.log('Client is ready!');
         connect(client);
     });
@@ -90,30 +87,17 @@ const cacheChatsAndContactsGlobally = async (client) => {
  * Pop message off the queue and parse them
  **/
 const connect = async (client) => {
-    // const queue = MessageQueue.open(MESSAGEQUEUEKEY);
-    // queue.pop({ type: FILESYSMESSAGETYPE }, (err, data) => {
-    //     s = utf8ArrayToString(data);
-    //     const message = JSON.parse(s);
-    //     console.log(message);
-    // });
-    const queue = [{
-        action: 'readdir',
-        path: '/chats'
-    },
-    {
-        action: 'readdir',
-        path: '/chats'
-    },
-    {
-        action: 'readdir',
-        path: '/chats'
-    }]
+    const queue = MessageQueue.open(MESSAGEQUEUEKEY);
+    queue.pop({ type: FILESYSMESSAGETYPE }, (err, data) => {
+        /* First 4 bytes indicate length of data as int32 in Little-Endian */
+        const dataLenAsBuf = data.slice(0,4);
+        const view = new DataView(dataLenAsBuf.buffer, 0);
+        const dataLen = view.getUint32(0, true)
 
-    for (let i = 0; i < queue.length; i++) {
-        const {action, path} = queue[i];
-        const res = await Routes[path][action](client);
-        console.log("\n\nResult of ith action is " + JSON.stringify(res));
-    }
+        /* Grab the data according to the length */
+        const message = JSON.parse(data.slice(4, 4 + dataLen));
+        console.log(message);
+    });
 }
 
 
@@ -159,16 +143,42 @@ const utf8ArrayToString = (function() {
 })();
 
 if (require.main == module) {
-    const client = new Client();
-    connectWhatsapp(client);
-    setupEventResponses(client);
+    // const client = new Client();
+    // connectWhatsapp(client);
+    const client = {};
+    connect(client);
 }
 
 
 
 module.exports = {
+    connectWhatsapp,
     parseMessage,
     MessageFormat,
     MESSAGEFIELDTYPES,
     Routes
 }
+
+
+
+
+
+
+// const queue = [{
+//     action: 'readdir',
+//     path: '/chats'
+// },
+// {
+//     action: 'readdir',
+//     path: '/chats'
+// },
+// {
+//     action: 'readdir',
+//     path: '/chats'
+// }]
+
+// for (let i = 0; i < queue.length; i++) {
+//     const {action, path} = queue[i];
+//     const res = await Routes[path][action](client);
+//     console.log("\n\nResult of ith action is " + JSON.stringify(res));
+// }

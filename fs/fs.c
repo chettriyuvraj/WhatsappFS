@@ -24,6 +24,8 @@
 #include "vendor/frozen.h"
 #include "vendor/frozen.c"
 
+#define MAX_MESSAGE_SIZE (size_t)1024*1024
+
 /*
  * Command line options
  *
@@ -46,10 +48,10 @@ Ideally, message should contain
  */
 struct queue_msgbuf {
     long mtype;  /* must be positive */
-    struct info {
-		char action[30];
-        char path[100];
-    } info;
+	struct info {
+		uint32_t size;
+		char data[MAX_MESSAGE_SIZE];
+	} msg_info;
 };
 
 #define OPTION(t, p)                           \
@@ -70,15 +72,24 @@ static void *whatsapp_init(struct fuse_conn_info *conn,
 {
     int msqid;
 	struct queue_info queue_info = {-1};
-	struct queue_msgbuf msg = {MSG_SEND_TYPE, {"Test title", "This is the title content"}};
+	struct queue_msgbuf msg;
+	char *jsonbuf = malloc(MAX_MESSAGE_SIZE);
+	struct json_out out = JSON_OUT_BUF(jsonbuf, MAX_MESSAGE_SIZE);
 	
 	msqid = init_msg_queue();
 	if (msqid == -1) {
 		return;
 	}
 
+	json_printf(&out, "{action: %Q, path: %Q}", "Test action", "testpath");
+	printf("\nData: %s\n", jsonbuf);
+	msg.mtype = MSG_SEND_TYPE;
+	msg.msg_info.size = strlen(jsonbuf);
+	strcpy(msg.msg_info.data, jsonbuf);
+	printf("\nData: %s\n", msg.msg_info.data);
+
 	if (msgsnd(msqid, &msg, sizeof(struct queue_msgbuf), 0) == -1) {
-		fuse_log(FUSE_LOG_INFO, "\n whatsapp_init: failed to send message queue");
+		fuse_log(FUSE_LOG_INFO, "\n whatsapp_init: failed to send to message queue");
 		return;
 	}
 
