@@ -20,8 +20,11 @@
 
 
 ## Structure
+_Ignore this for now, I don't think it makes any sense currently_
+
 - chats (use client.getchats)
     - a, b, c ...
+        (name: is a property but will be returned as part of entry title)
         (read only)
         - isGroup
         - isMuted
@@ -49,3 +52,17 @@
         - isEnterprise
         (exec only)
         - block
+
+
+## Progress
+
+I pick this up after a bit and forget where I am so just as a reminder to myself
+
+- On launching file system using _./whatsappfs -f testdir/_ command whatsapp_init in fs.c sends a hardcoded JSON message to message queue
+- On launching client _node client.js_, the connect function grabs this message from the queue and parses it
+- Format of the message:
+    - First 4 bytes are the _size_: indicate the length of the JSON as a uint32
+    - Remaining _size_ amount of bytes from byte 4 onwards is the JSON
+- On using the svmq library to pick the message out from the message queue in our node client, we also get a bit of gibberish at the end, which gives an error on trying to parse it using Json.parse()
+- This is the reason I am passing the size of the json at the start of the message
+
